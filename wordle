@@ -1,0 +1,77 @@
+#!/usr/bin/php
+<?php
+declare(strict_types=1);
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\SingleCommandApplication;
+
+function str_includes(string $word, string $letters): bool
+{
+    foreach (str_split($letters) as $letter) {
+        if (strpos($word, $letter) === false) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+(new SingleCommandApplication())
+    ->setName('wordle') // Optional
+    ->setVersion('1.0.0') // Optional
+    
+    ->addOption('excludes', null, InputOption::VALUE_REQUIRED)
+    ->addOption('includes', null, InputOption::VALUE_REQUIRED)
+    
+    ->addArgument('a', InputArgument::REQUIRED)
+    ->addArgument('b', InputArgument::REQUIRED)
+    ->addArgument('c', InputArgument::REQUIRED)
+    ->addArgument('d', InputArgument::REQUIRED)
+    ->addArgument('e', InputArgument::REQUIRED)
+
+    ->setCode(function (InputInterface $input, OutputInterface $output) {
+
+        $words     = explode("\n", trim(file_get_contents(__DIR__ . '/dictionary.txt')));
+        $excludes  = $input->getOption('excludes');
+        $includes  = $input->getOption('includes');
+        $possibles = [];
+        
+        foreach ($words as $word) {
+            if (!is_null($excludes) && preg_match('`[' . $excludes . ']`', $word)) {
+                continue;
+            }
+
+            if (!is_null($includes) && !str_includes($word, $includes)) {
+                continue;
+            }
+
+            $regex = str_split('.....');
+
+
+            foreach (str_split('abcde') as $index => $position) {
+                $value = $input->getArgument($position);
+                if (str_starts_with($value, '^')) {
+                    $regex[$index] = '[' . $value . ']';
+                }
+                else {
+                    $regex[$index] = $value;
+                }
+            }
+
+            if (preg_match('`^' . implode('', $regex) . '$`i', $word)) {
+                $possibles[] = $word;
+            }
+        }
+
+        if (count($possibles)) {
+            $output->writeLn(implode("\n", $possibles) . "\n");
+        }
+
+        $output->writeln(number_format(count($possibles)) . ' possible(s) out of ' . number_format(count($words)));
+    })
+    ->run();
